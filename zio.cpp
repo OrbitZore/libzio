@@ -1,10 +1,13 @@
 #include <arpa/inet.h>
+#include <asm-generic/errno.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <cerrno>
+#include <exception>
 #include <memory>
 #include <queue>
 #include <thread>
@@ -65,6 +68,9 @@ struct io_context {
       FD_ZERO(&fdset);
       fdmax = 0;
     }
+    void set(int fd){
+      FD_SET(fd,&fdset);
+    }
     void add(int fd, shared_ptr<io_op> func) {
       cmax(fdmax, fd);
       FD_SET(fd, &fdset);
@@ -74,6 +80,12 @@ struct io_context {
       FD_CLR(fd, &fdset);
       while (funcs[fd].size())
         funcs[fd].pop();
+    }
+    size_t regsize(){
+      size_t s=0;
+      for (auto i:funcs)
+        s+=i.size();
+      return s;
     }
     int get(int fd) { return FD_ISSET(fd, &fdset); }
     void scan(io_context& ctx, const fd_set& s) {
@@ -92,23 +104,29 @@ struct io_context {
   };
   _fd_set read_op_set;
   _fd_set write_op_set;
+  fd_set read_set;
+  fd_set write_set;
   void run() {
-    while (true) {
+    while (read_op_set.regsize()||write_op_set.regsize()) {
       timeval tv;
       tv.tv_sec = 1;
       tv.tv_usec = 0;
-      fd_set nread_op_set = read_op_set.fdset;
-      fd_set nwrite_op_set = write_op_set.fdset;
-      select(max({read_op_set.fdmax, write_op_set.fdmax}) + 1, &nread_op_set,
-             &nwrite_op_set, NULL, &tv);
+      read_set = read_op_set.fdset;
+      write_set = write_op_set.fdset;
+      int cnt=select(max({read_op_set.fdmax, write_op_set.fdmax}) + 1, &read_set,
+             &write_set, NULL, &tv);
+      // this_thread::sleep_for(1s);
+      #ifdef debug
+      cerr<<"select:"<<cnt<<endl;
+      #endif
       // if (i>=100) exit(-1);
       // for (int i=0;i<FD_SETSIZE;i++)
       //   if (FD_ISSET(i, &nread_op_set)) cout<<"R"<<i<<" ";
       // for (int i=0;i<FD_SETSIZE;i++)
       //   if (FD_ISSET(i, &nwrite_op_set)) cout<<"W"<<i<<" ";
       // cout<<endl;
-      read_op_set.scan(*this, nread_op_set);
-      write_op_set.scan(*this, nwrite_op_set);
+      read_op_set.scan(*this, read_set);
+      write_op_set.scan(*this, write_set);
     }
   }
 };
@@ -167,12 +185,17 @@ struct io_write : public io_op {
 };
 struct connection {
   io_context& ctx;
-  int fd;
+  int fd{-1};
+  bool status{0};
   void close() {
-    ctx.read_op_set.del(fd);
-    ctx.write_op_set.del(fd);
-    ::close(fd);
+    if (fd!=-1){
+      ctx.read_op_set.del(fd);
+      ctx.write_op_set.del(fd);
+      ::close(fd);
+      fd=-1;
+    }
   }
+  operator bool(){return fd!=-1&&status==0;}
   void async_write(char* c,
                    int n,
                    function<void(int, int)> completion_handler) {
@@ -201,6 +224,29 @@ struct io_accept : public io_op {
   }
 };
 
+template <class T>
+struct io_connect : public io_op {
+  function<void(connection)> completion_handler;
+  int fd;
+  io_connect(int fd, function<void(connection)> completion_handler)
+      : fd(fd), completion_handler(move(completion_handler)) {}
+  virtual ~io_connect() {}
+  virtual bool operator()(io_context& ctx) {
+    cerr<<2;
+    int error=0;
+    if (FD_ISSET(fd, &ctx.read_set) || FD_ISSET(fd, &ctx.write_set)){
+      socklen_t len=sizeof(error);
+      if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len)<0)
+        return false;
+    }else error=-1;
+    cerr<<error<<endl;
+    connection c{ctx,fd,(bool)error};
+    completion_handler(move(c));
+    if (error&&c.fd!=-1) c.close();
+    return true;
+  }
+};
+
 struct none_callback {
   template <class... Args>
   void operator()(Args... args) {}
@@ -211,17 +257,45 @@ struct acceptor {
   int fd;
   ~acceptor() {
     ctx.read_op_set.del(fd);
+    ctx.write_op_set.del(fd);
     close(fd);
   }
   acceptor(io_context& ctx, const T& addr) : ctx(ctx) {
     fd = socket(T::AF, proto::SOCK, proto::PROTO);
     int val = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, val | O_NONBLOCK);
-    ::bind(fd, (const sockaddr*)&addr, addr.length());
+    if (::bind(fd, (const sockaddr*)&addr, addr.length())<0&&errno!=EINPROGRESS)
+      throw exception();
     ::listen(fd, 16);
   }
   void async_accept(function<bool(connection)> func) {
     ctx.read_op_set.add(fd, make_shared<io_accept<T>>(fd, move(func)));
+  }
+};
+
+
+template <class T, class proto>
+struct connector {
+  io_context& ctx;
+  int fd;
+  ~connector() {
+    cerr<<1;
+    ctx.read_op_set.del(fd);
+    ctx.write_op_set.del(fd);
+    close(fd);
+  }
+  connector(io_context& ctx) : ctx(ctx) {
+    fd = socket(T::AF, proto::SOCK, proto::PROTO);
+    int val = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, val | O_NONBLOCK);
+  }
+  void async_connect(const T& addr,function<void(connection)> func) {
+    int n;
+    if ((n=::connect(fd, (sockaddr *)&addr, addr.length()))<0&&errno!=EINPROGRESS)
+      throw exception();
+    if (n==0)
+      func(connection{ctx,fd,0});
+    else ctx.read_op_set.add(fd, make_shared<io_connect<T>>(fd, move(func)));
   }
 };
 }  // namespace zio
@@ -275,32 +349,77 @@ struct udp {
 
 }  // namespace zio::ip
 using namespace zio;
-struct session {
-  connection c;
-  char buffer[1024];
-  ~session() { c.close(); }
-  void recv(int n) {
-    if (n > 0) {
-      c.async_write(buffer, n, [this](int n, int ret) { send(n, ret); });
-    } else
-      delete this;
-  }
-  void send(int n, int ret) {
-    if (!ret) {
-      c.async_read(buffer, 1024, [this](int n) { recv(n); });
-    } else
-      delete this;
-  }
-};
+
+namespace echo_server {
+  struct session {
+    connection c;
+    char buffer[1024];
+    ~session() { c.close(); }
+    void recv(int n) {
+      if (n > 0) {
+        c.async_write(buffer, n, [this](int n, int ret) { send(n, ret); });
+      } else
+        delete this;
+    }
+    void send(int n, int ret) {
+      if (!ret) {
+        c.async_read(buffer, 1024, [this](int n) { recv(n); });
+      } else
+        delete this;
+    }
+  };
+  template <class T1,class T2>
+  struct server{
+    acceptor<T1, T2> a;
+    server(io_context &ctx,T1 ip):a(ctx,ip){
+      a.async_accept([i = 0](connection c) mutable {
+        auto s = new session{c};
+        c.async_read(s->buffer, 1024, [=](int n) mutable { s->recv(n); });
+        return false;
+      });
+    }
+  };
+}
+
+namespace echo_client {
+  struct session {
+    connection c;
+    char buffer[1024];
+    ~session() { c.close(); }
+    void recv(int n) {
+      if (n > 0) {
+        c.async_write(buffer, n, [this](int n, int ret) { send(n, ret); });
+      } else
+        delete this;
+    }
+    void send(int n, int ret) {
+      if (!ret) {
+        c.async_read(buffer, 1024, [this](int n) { recv(n); });
+      } else
+        delete this;
+    }
+  };
+  template <class T1,class T2>
+  struct client{
+    connector<T1, T2> a;
+    client(io_context &ctx,T1 ip):a(ctx){
+      a.async_connect(ip,[i = 0](connection c) mutable {
+        cerr<<1;
+        if (c){
+          cerr<<client_addr<T1>(c.fd)<<endl;
+          auto s = new session{c};
+          c.async_read(s->buffer, 1024, [=](int n) mutable { s->recv(n); });
+        }
+      });
+    }
+  };
+}
+
 int main() {
   auto ip = ip::ipv4::from_pret("127.0.0.1", 5002);
   cout << ip << endl;
   io_context ctx;
-  acceptor<ip::ipv4, ip::tcp> a(ctx, ip);
-  a.async_accept([i = 0](connection c) mutable {
-    auto s = new session{c};
-    c.async_read(s->buffer, 1024, [=](int n) mutable { s->recv(n); });
-    return false;
-  });
+  // echo_server::server<ip::ipv4, ip::tcp> a(ctx, ip);
+  echo_client::client<ip::ipv4, ip::tcp> a(ctx, ip);
   ctx.run();
 }
