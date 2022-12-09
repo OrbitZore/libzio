@@ -1,0 +1,70 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-std=c++20",
+      "-fsanitize=address",
+      "-g",
+      "-I",
+      "/home/z3475/ACM/ATL/base/include",
+      "-o",
+      "zio",
+      "zio.cpp"
+    ],
+    "directory": "/home/z3475/ACM/zio",
+    "file": "/home/z3475/ACM/zio/zio.cpp",
+    "output": "/home/z3475/ACM/zio/zio"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-std=c++20",
+      "-fsanitize=address",
+      "-g",
+      "-I",
+      "/home/z3475/ACM/ATL/base/include",
+      "-o",
+      "zio-uring",
+      "zio-uring.cpp"
+    ],
+    "directory": "/home/z3475/ACM/zio",
+    "file": "/home/z3475/ACM/zio/zio-uring.cpp",
+    "output": "/home/z3475/ACM/zio/zio-uring"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-std=c++20",
+      "-fsanitize=address",
+      "-g",
+      "-I",
+      "/home/z3475/ACM/ATL/base/include",
+      "-o",
+      "zio-coroutine",
+      "zio-coroutine.cpp"
+    ],
+    "directory": "/home/z3475/ACM/zio",
+    "file": "/home/z3475/ACM/zio/zio-coroutine.cpp",
+    "output": "/home/z3475/ACM/zio/zio-coroutine"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-std=c++20",
+      "-fsanitize=address",
+      "-g",
+      "-I",
+      "/home/z3475/ACM/ATL/base/include",
+      "-o",
+      "uringtest",
+      "uringtest.cpp"
+    ],
+    "directory": "/home/z3475/ACM/zio",
+    "file": "/home/z3475/ACM/zio/uringtest.cpp",
+    "output": "/home/z3475/ACM/zio/uringtest"
+  }
+]
