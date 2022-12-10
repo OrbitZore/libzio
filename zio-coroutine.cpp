@@ -61,7 +61,7 @@ template <class T>
 struct promise;
 
 template <class T>
-struct awaitble;
+struct awaitable;
 
 // namespace std {
 // template <class T, class... Args>
