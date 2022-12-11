@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <utility>
 #include "cardinal.hpp"
+#include "zio_types.hpp"
 #include "liburing.h"
 namespace zio {
 template <class T>
@@ -271,18 +272,45 @@ struct timeout_await : public await{
 struct io_await_read : public io_await {
   int fd;
   char* c;
-  unsigned int n;
+  size_t n;
   u64 offset;
-  io_await_read(int fd, char* c, unsigned int n, u64 offset);
+  io_await_read(int fd, char* c, size_t n, u64 offset);
   virtual void prepare(io_uring_sqe* sqe);
 };
 
 struct io_await_write : public io_await {
   int fd;
   const char* c;
-  unsigned int n;
+  size_t n;
   u64 offset;
-  io_await_write(int fd, const char* c, unsigned int n, u64 offset);
+  io_await_write(int fd, const char* c, size_t n, u64 offset);
+  virtual void prepare(io_uring_sqe* sqe);
+};
+
+struct io_await_recv : public io_await {
+  int fd;
+  char* c;
+  size_t n;
+  int flags;
+  io_await_recv(int fd, char* c, size_t n, int flags);
+  virtual void prepare(io_uring_sqe* sqe);
+};
+
+struct io_await_send : public io_await {
+  int fd;
+  const char* c;
+  size_t n;
+  int flags;
+  io_await_send(int fd, const char* c, size_t n, int flags);
+  virtual void prepare(io_uring_sqe* sqe);
+};
+
+struct io_await_send_zc : public io_await {
+  int fd;
+  const char* c;
+  size_t n;
+  int flags;
+  io_await_send_zc(int fd, const char* c, size_t n, int flags);
   virtual void prepare(io_uring_sqe* sqe);
 };
 
@@ -291,8 +319,11 @@ struct connection {
   int status{0};
   void close();
   operator bool() { return fd != -1 && status == 0; }
-  io_await_write async_write(const char* c, int n);
-  io_await_read async_read(char* c, int n);
+  io_await_write async_write(const char* c, size_t n);
+  io_await_read async_read(char* c, size_t n);
+  io_await_recv async_recv(char *c,size_t n,int flags=0);
+  io_await_send async_send(const char *c,size_t n,int flags=0);
+  io_await_send_zc async_send_zc(const char *c,size_t n,int flags=0);
 };
 
 struct io_await_accept : public io_await {
@@ -302,12 +333,12 @@ struct io_await_accept : public io_await {
   connection get_return();
 };
 
-template <class T, class proto>
+template <types::Address Address, types::Protocol proto>
 struct acceptor {
   int fd;
   ~acceptor() { close(fd); }
-  acceptor(const T& addr) {
-    fd = socket(T::AF, proto::SOCK, proto::PROTO);
+  acceptor(const Address& addr) {
+    fd = socket(Address::AF, proto::SOCK, proto::PROTO);
     if (::bind(fd, (const sockaddr*)&addr, addr.length()) < 0)
       throw exception();
     ::listen(fd, 16);
@@ -324,16 +355,27 @@ struct io_await_connect : public io_await {
   connection get_return();
 };
 
-template<class T,class proto>
-io_await_connect async_connect(T&& addr) {
-  int fd = socket(decay_t<T>::AF, proto::SOCK, proto::PROTO);
+template <types::Address Address, types::Protocol proto>
+io_await_connect async_connect(Address&& addr) {
+  int fd = socket(decay_t<Address>::AF, proto::SOCK, proto::PROTO);
   return {fd, (sockaddr*)&addr, addr.length()};
 }
+
+template <types::Address Address, types::Protocol proto>
+connection async_open(Address&& addr) {
+  int fd = socket(decay_t<Address>::AF, proto::SOCK, proto::PROTO);
+  int status=::bind(fd, (const sockaddr*)&addr, addr.length());
+  if (status<0) status=errno;
+  return {fd,status};
+}
+
 template<class Rep,class Period>
 timeout_await async_timeout(const std::chrono::duration<Rep, Period>& sleep_duration){
   return {time(NULL) + std::chrono::duration_cast<std::chrono::duration<time_t>>(sleep_duration).count()};
 }
-io_await_read async_read(int fd, char* c, unsigned int n, u64 offset = 0);
-io_await_write async_write(int fd, const char* c, unsigned int n, u64 offset = 0);
-
+io_await_read async_read(int fd, char* c, size_t n, u64 offset = 0);
+io_await_write async_write(int fd, const char* c, size_t n, u64 offset = 0);
+io_await_recv async_recv(int fd,char *c,size_t n,int flags);
+io_await_send async_send(int fd,const char *c,size_t n,int flags);
+io_await_send_zc async_send_zc(int fd,const char *c,size_t n,int flags);
 }  // namespace zio

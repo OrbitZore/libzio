@@ -19,13 +19,10 @@ awaitable<void> f() {
   auto G2 = g2();
   auto G3 = g3();
   while (true) {
-    auto x = co_await G1;
-    auto y = co_await G2;
-    auto z = co_await G3;
-    // cerr<<x<<"\n"<<y<<"\n"<<z<<endl;
-    // cerr<<(bool)G1<<endl;
-    // cerr<<(bool)G2<<endl;
-    // cerr<<(bool)G3<<endl;
+    co_await wait_any(G1,G2,G3);
+    auto x = G1.get_return();
+    auto y = G2.get_return();
+    auto z = G3.get_return();
     if (!x && !y && !z)
       break;
     if (x)
@@ -87,7 +84,7 @@ awaitable<void> request_uuid_client(connection con) {
     static const int len=strlen(uuid_request);
     const char* c=uuid_request;
     while (c!=uuid_request+len){
-      int n=co_await con.async_write(c,len-(c-uuid_request));
+      int n=co_await con.async_send_zc(c,len-(c-uuid_request));
       if (n<=0) break;
       c+=n;
     }
@@ -96,10 +93,10 @@ awaitable<void> request_uuid_client(connection con) {
   char c[1024];
   string res;
   while (1){
-    int n1=co_await con.async_read(c, 1024);
+    int n1=co_await con.async_recv(c, 1024);
     if (n1<=0) break;
     res+=string_view(c,c+n1);
-    // cerr<<"recv:"<<string_view(c,c+n1)<<endl<<(int)res.back()<<" "<<(int)res.end()[-2]<<endl;
+    cerr<<"recv:"<<string_view(c,c+n1)<<endl<<(int)res.back()<<" "<<(int)res.end()[-2]<<endl;
     if (res.ends_with("\r")||res.ends_with("\n"))
       break;
   }
@@ -138,13 +135,12 @@ awaitable<void> echo_client_await(io_context& ctx,ipv4 addr){
     co_await wait_all(tm,con);
   }
 }
-int main() {
+int main(int argc,char *argv[]) {
   io_context ctx;
   // const auto ip =ipv4::from_pret("127.0.0.1",1244);
-  const auto ip =ipv4::from_pret("198.18.0.217", 80);
+  const auto ip =*ipv4::from_url("http://httpbin.org");
   // ctx.reg(echo_client_await(ctx,ip));
-  auto af=f();
-  ctx.reg(af);
+  ctx.reg(echo_client_await(ctx,ip));
   // ctx.reg(server(ctx));
   ctx.run();
   // struct io_uring_cqe* cqe;
