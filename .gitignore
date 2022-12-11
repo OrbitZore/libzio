@@ -1,3 +1,5 @@
 .cache/
 uring/.cache/
 *.o
+uring/.cache/clangd/index/uringtest.cpp.C9AEA296062E54D8.idx
+uring/.cache/clangd/index/uringtest.h.B489527E8E5AC852.idx
