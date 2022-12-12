@@ -13,6 +13,9 @@ void await::wake_others() {
 coroutine_handle<promise_base> promise_base::handle() {
   return coroutine_handle<promise_base>::from_promise(*this);
 }
+promise_base::~promise_base(){
+
+}
 void awaitable<void>::get_return() {
   if (!p)
     return;
@@ -46,29 +49,25 @@ suspend_always promise<void>::yield_void() {
 io_context::io_context() {
   io_uring_queue_init(128, &ring, 0);
 }
-void io_context::reg(promise_base* p) {
-  p->from_ctx = true;
-  work_queue.push_back(p);
-}
 void io_context::run() {
-  int uring_submit_cnt = 0;
   while (true) {
     bool is_advanced = false;
     while (work_queue.size()) {
       is_advanced = true;
-      work_queue.front()->handle()();
-      work_queue.front()->wake_others();
-      if (work_queue.front()->done && work_queue.front()->from_ctx) {
-        work_queue.front()->~promise_base();
+      auto p=work_queue.front();
+      work_queue.pop_front();
+      p->handle()();
+      p->wake_others();
+      if (p->done && p->from_ctx) {
+        p->handle().destroy();
 #ifdef DEBUG
-        cerr << "Destory!" << endl;
+        cerr << "Destory:"<< p << endl;
 #endif
       } else {
 #ifdef DEBUG
-        cerr << "No!" << work_queue.front()->from_ctx << endl;
+        cerr << "No!" << p->from_ctx << endl;
 #endif
       }
-      work_queue.pop_front();
     }
     uring_submit_cnt += io_uring_submit(&ring);
     io_uring_cqe* cqe;

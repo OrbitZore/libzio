@@ -47,6 +47,7 @@ struct await {
   void wake_others();
 };
 struct promise_base : public await {
+  virtual ~promise_base();
   int wait_cnt{0};
   coroutine_handle<promise_base> handle();
 };
@@ -63,15 +64,21 @@ struct io_context {
   multimap<time_t, timeout_await*> sleep_queue;
   deque<promise_base*> work_queue;
   io_uring ring;
+  int uring_submit_cnt = 0;
   io_context();
-  void reg(promise_base* p);
   template <class T>
   void reg(awaitable<T>& a) {
+#ifdef DEBUG
+    cerr << "Create(ref):" << a.get_promise() << endl;
+#endif
     a.get_promise()->ctx = this;
     work_queue.push_back(a.get_promise());
   }
   template <class T>
   void reg(awaitable<T>&& a) {
+#ifdef DEBUG
+    cerr << "Create(move):" << a.get_promise() << endl;
+#endif
     a.get_promise()->from_ctx = true;
     a.get_promise()->ctx = this;
     work_queue.push_back(a.get_promise());
@@ -111,7 +118,7 @@ struct promise : promise_base {
   T value_;
 };
 template <class U>
-void io_await::await_suspend(coroutine_handle<U> h) {
+inline void io_await::await_suspend(coroutine_handle<U> h) {
 #ifdef DEBUG
   cerr << "con" << endl;
 #endif
@@ -120,7 +127,7 @@ void io_await::await_suspend(coroutine_handle<U> h) {
 #ifdef DEBUG
     cerr << "full" << endl;
 #endif
-    io_uring_submit(&ctx->ring);
+    ctx->uring_submit_cnt += io_uring_submit(&ctx->ring);
     sqe = io_uring_get_sqe(&ctx->ring);
   }
   prepare(sqe);
@@ -163,7 +170,6 @@ struct any_await {
   }
   template <class U>
   void await_suspend(coroutine_handle<U> h) {
-    int cnt = 0;
     std::apply(
         [&](auto&&... args) { ((args ? args.await_suspend(h) : void()), ...); },
         t);
@@ -219,8 +225,12 @@ struct awaitable_base {
   }
   void detached() { p = nullptr; }
   ~awaitable_base() {
-    if (p)
+    if (p) {
+#ifdef DEBUG
+      cerr << "delete:" << p << endl;
+#endif
       handle().destroy();
+    }
   }
 };
 template <class T>
@@ -307,7 +317,7 @@ struct message_header : public msghdr {
     msg_name = &addr;
     msg_namelen = addr.length();
   }
-  void set_address(void* addr,int addrlen);
+  void set_address(void* addr, int addrlen);
   void set_io_vector(io_vector& v);
 };
 
@@ -346,8 +356,8 @@ struct connection {
   io_await_recv async_recv(char* c, size_t n, int flags = 0);
   io_await_send async_send(const char* c, size_t n, int flags = 0);
   io_await_send_zc async_send_zc(const char* c, size_t n, int flags = 0);
-  io_await_sendmsg async_sendmsg(message_header* msg,int flags = 0);
-  io_await_recvmsg async_recvmsg(message_header* msg,int flags = 0);
+  io_await_sendmsg async_sendmsg(message_header* msg, int flags = 0);
+  io_await_recvmsg async_recvmsg(message_header* msg, int flags = 0);
 };
 
 struct io_await_accept : public io_await {
@@ -389,9 +399,9 @@ template <types::Address Address, types::Protocol proto>
 connection open(Address&& addr) {
   int fd = socket(decay_t<Address>::AF, proto::SOCK, proto::PROTO);
   int status = ::bind(fd, (const sockaddr*)&addr, addr.length());
-  if (status < 0){
+  if (status < 0) {
     status = errno;
-    cerr<<strerror(errno)<<endl;
+    cerr << strerror(errno) << endl;
   }
   return {fd, status};
 }

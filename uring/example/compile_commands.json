@@ -1,0 +1,20 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-std=c++20",
+      "-g",
+      "-fsanitize=address",
+      "-I../",
+      "-I",
+      "/home/z3475/ACM/ATL/base/include",
+      "-o",
+      "tcp_echo_server.out",
+      "tcp_echo_server.cpp"
+    ],
+    "directory": "/home/z3475/ACM/zio/uring/example",
+    "file": "/home/z3475/ACM/zio/uring/example/tcp_echo_server.cpp",
+    "output": "/home/z3475/ACM/zio/uring/example/tcp_echo_server.out"
+  }
+]
