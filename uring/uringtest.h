@@ -1,16 +1,18 @@
 #pragma once
 #include <bits/chrono.h>
+#include <bits/types/struct_iovec.h>
 #include <bits/utility.h>
 #include <sys/socket.h>
 #include <coroutine>
 #include <cstddef>
+#include <cstring>
 #include <functional>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include "cardinal.hpp"
-#include "zio_types.hpp"
 #include "liburing.h"
+#include "zio_types.hpp"
 namespace zio {
 template <class T>
 struct awaitable;
@@ -40,7 +42,7 @@ struct promise_base;
 struct await {
   io_context* ctx{NULL};
   vector<promise_base*> wake_queue;
-  bool done{false},from_ctx{false};
+  bool done{false}, from_ctx{false};
   void set_context(io_context& _ctx);
   void wake_others();
 };
@@ -58,19 +60,19 @@ struct io_await : public await {
   int get_return();
 };
 struct io_context {
-  multimap<time_t,timeout_await*> sleep_queue;
+  multimap<time_t, timeout_await*> sleep_queue;
   deque<promise_base*> work_queue;
   io_uring ring;
   io_context();
   void reg(promise_base* p);
   template <class T>
   void reg(awaitable<T>& a) {
-    a.get_promise()->from_ctx=true;
     a.get_promise()->ctx = this;
     work_queue.push_back(a.get_promise());
   }
   template <class T>
   void reg(awaitable<T>&& a) {
+    a.get_promise()->from_ctx = true;
     a.get_promise()->ctx = this;
     work_queue.push_back(a.get_promise());
     a.detached();
@@ -149,60 +151,50 @@ struct promise<void> : promise_base {
   void return_void();
   suspend_always yield_void();
 };
-template <class ...Args>
-struct any_await{
+template <class... Args>
+struct any_await {
   tuple<Args...> t;
-  operator bool()const{
-    return std::apply([](auto&& ...args){
-      return (((bool)args)||...);
-    },t);
+  operator bool() const {
+    return std::apply([](auto&&... args) { return (((bool)args) || ...); }, t);
   }
-  void set_context(io_context& ctx){
-    return std::apply([&](auto&& ...args){
-      return (args.set_context(ctx),...);
-    },t);
+  void set_context(io_context& ctx) {
+    return std::apply(
+        [&](auto&&... args) { return (args.set_context(ctx), ...); }, t);
   }
-  template<class U>
+  template <class U>
   void await_suspend(coroutine_handle<U> h) {
-    int cnt=0;
-    std::apply([&](auto&& ...args){
-      ((args?args.await_suspend(h):void()),...);
-    },t);
-    h.promise().wait_cnt=1;
+    int cnt = 0;
+    std::apply(
+        [&](auto&&... args) { ((args ? args.await_suspend(h) : void()), ...); },
+        t);
+    h.promise().wait_cnt = 1;
   }
-  void get_return(){
-    
-  }
+  void get_return() {}
 };
-template <class ...Args>
-any_await<Args&&...> wait_any(Args&& ...args){
+template <class... Args>
+any_await<Args&&...> wait_any(Args&&... args) {
   return any_await<Args&&...>({forward<Args>(args)...});
 }
-template <class ...Args>
-struct all_await{
+template <class... Args>
+struct all_await {
   tuple<Args...> t;
-  operator bool()const{
-    return std::apply([](auto&& ...args){
-      return (((bool)args)||...);
-    },t);
+  operator bool() const {
+    return std::apply([](auto&&... args) { return (((bool)args) || ...); }, t);
   }
-  void set_context(io_context& ctx){
-    return std::apply([&](auto&& ...args){
-      return (args.set_context(ctx),...);
-    },t);
+  void set_context(io_context& ctx) {
+    return std::apply(
+        [&](auto&&... args) { return (args.set_context(ctx), ...); }, t);
   }
-  template<class U>
+  template <class U>
   void await_suspend(coroutine_handle<U> h) {
-    std::apply([&](auto&& ...args){
-      ((args?args.await_suspend(h):void()),...);
-    },t);
+    std::apply(
+        [&](auto&&... args) { ((args ? args.await_suspend(h) : void()), ...); },
+        t);
   }
-  void get_return(){
-    
-  }
+  void get_return() {}
 };
-template <class ...Args>
-all_await<Args&&...> wait_all(Args&& ...args){
+template <class... Args>
+all_await<Args&&...> wait_all(Args&&... args) {
   return all_await<Args&&...>({forward<Args>(args)...});
 }
 template <class T>
@@ -255,16 +247,16 @@ struct awaitable<void> : public awaitable_base<void> {
   void get_return();
 };
 
-struct timeout_await : public await{
+struct timeout_await : public await {
   time_t t;
   timeout_await(time_t t);
-  bool operator<(const timeout_await& ta) const { return t<ta.t;}
-  operator bool() const { return time(NULL)<=t; }
+  bool operator<(const timeout_await& ta) const { return t < ta.t; }
+  operator bool() const { return time(NULL) <= t; }
   template <class U>
-  void await_suspend(coroutine_handle<U> h){
+  void await_suspend(coroutine_handle<U> h) {
     wake_queue.push_back(&h.promise());
     h.promise().wait_cnt++;
-    ctx->sleep_queue.insert({t,this});
+    ctx->sleep_queue.insert({t, this});
   }
   void get_return();
 };
@@ -305,6 +297,36 @@ struct io_await_send : public io_await {
   virtual void prepare(io_uring_sqe* sqe);
 };
 
+struct io_vector : public vector<iovec> {
+  using vector<iovec>::vector;
+};
+
+struct message_header : public msghdr {
+  template <types::Address Address>
+  void set_address(Address& addr) {
+    msg_name = &addr;
+    msg_namelen = addr.length();
+  }
+  void set_address(void* addr,int addrlen);
+  void set_io_vector(io_vector& v);
+};
+
+struct io_await_recvmsg : public io_await {
+  int fd;
+  message_header* msg;
+  int flags;
+  io_await_recvmsg(int fd, message_header* msg, int flags);
+  virtual void prepare(io_uring_sqe* sqe);
+};
+
+struct io_await_sendmsg : public io_await {
+  int fd;
+  message_header* msg;
+  int flags;
+  io_await_sendmsg(int fd, message_header* msg, int flags);
+  virtual void prepare(io_uring_sqe* sqe);
+};
+
 struct io_await_send_zc : public io_await {
   int fd;
   const char* c;
@@ -321,9 +343,11 @@ struct connection {
   operator bool() { return fd != -1 && status == 0; }
   io_await_write async_write(const char* c, size_t n);
   io_await_read async_read(char* c, size_t n);
-  io_await_recv async_recv(char *c,size_t n,int flags=0);
-  io_await_send async_send(const char *c,size_t n,int flags=0);
-  io_await_send_zc async_send_zc(const char *c,size_t n,int flags=0);
+  io_await_recv async_recv(char* c, size_t n, int flags = 0);
+  io_await_send async_send(const char* c, size_t n, int flags = 0);
+  io_await_send_zc async_send_zc(const char* c, size_t n, int flags = 0);
+  io_await_sendmsg async_sendmsg(message_header* msg,int flags = 0);
+  io_await_recvmsg async_recvmsg(message_header* msg,int flags = 0);
 };
 
 struct io_await_accept : public io_await {
@@ -362,20 +386,35 @@ io_await_connect async_connect(Address&& addr) {
 }
 
 template <types::Address Address, types::Protocol proto>
-connection async_open(Address&& addr) {
+connection open(Address&& addr) {
   int fd = socket(decay_t<Address>::AF, proto::SOCK, proto::PROTO);
-  int status=::bind(fd, (const sockaddr*)&addr, addr.length());
-  if (status<0) status=errno;
-  return {fd,status};
+  int status = ::bind(fd, (const sockaddr*)&addr, addr.length());
+  if (status < 0){
+    status = errno;
+    cerr<<strerror(errno)<<endl;
+  }
+  return {fd, status};
 }
 
-template<class Rep,class Period>
-timeout_await async_timeout(const std::chrono::duration<Rep, Period>& sleep_duration){
-  return {time(NULL) + std::chrono::duration_cast<std::chrono::duration<time_t>>(sleep_duration).count()};
+template <class Rep, class Period>
+timeout_await async_timeout(
+    const std::chrono::duration<Rep, Period>& sleep_duration) {
+  return {
+      time(NULL) +
+      std::chrono::duration_cast<std::chrono::duration<time_t>>(sleep_duration)
+          .count()};
 }
 io_await_read async_read(int fd, char* c, size_t n, u64 offset = 0);
 io_await_write async_write(int fd, const char* c, size_t n, u64 offset = 0);
-io_await_recv async_recv(int fd,char *c,size_t n,int flags);
-io_await_send async_send(int fd,const char *c,size_t n,int flags);
-io_await_send_zc async_send_zc(int fd,const char *c,size_t n,int flags);
+io_await_recv async_recv(int fd, char* c, size_t n, int flags);
+io_await_send async_send(int fd, const char* c, size_t n, int flags);
+template <types::Address T>
+io_await_recvmsg async_recvmsg(int fd, message_header* msg, int flags) {
+  return {fd, msg, flags};
+}
+template <types::Address T>
+io_await_sendmsg async_sendmsg(int fd, message_header* msg, int flags) {
+  return {fd, msg, flags};
+}
+io_await_send_zc async_send_zc(int fd, const char* c, size_t n, int flags);
 }  // namespace zio

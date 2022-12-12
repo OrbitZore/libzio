@@ -113,10 +113,7 @@ int io_await::get_return() {
   return ret;
 }
 
-io_await_write::io_await_write(int fd,
-                               const char* c,
-                               size_t n,
-                               u64 offset)
+io_await_write::io_await_write(int fd, const char* c, size_t n, u64 offset)
     : fd(fd), c(c), n(n), offset(offset) {}
 void io_await_write::prepare(io_uring_sqe* sqe) {
   io_uring_prep_write(sqe, fd, c, n, offset);
@@ -135,40 +132,66 @@ io_await_read connection::async_read(char* c, size_t n) {
   return zio::async_read(fd, c, n);
 }
 
-io_await_recv connection::async_recv(char *c,size_t n,int flags){
-  return zio::async_recv(fd,c,n,flags);
-}
-io_await_send connection::async_send(const char *c,size_t n,int flags){
-  return zio::async_send(fd,c,n,flags);
-}
-io_await_send_zc connection::async_send_zc(const char *c,size_t n,int flags){
-  return zio::async_send_zc(fd,c,n,flags);
+io_await_recv connection::async_recv(char* c, size_t n, int flags) {
+  return zio::async_recv(fd, c, n, flags);
 }
 
+io_await_send connection::async_send(const char* c, size_t n, int flags) {
+  return zio::async_send(fd, c, n, flags);
+}
+
+io_await_sendmsg connection::async_sendmsg(message_header* msg, int flags) {
+  return {fd, msg, flags};
+}
+io_await_recvmsg connection::async_recvmsg(message_header* msg, int flags) {
+  return {fd, msg, flags};
+}
+
+io_await_send_zc connection::async_send_zc(const char* c, size_t n, int flags) {
+  return zio::async_send_zc(fd, c, n, flags);
+}
+
+void message_header::set_address(void* addr, int addrlen) {
+  msg_name = addr;
+  msg_namelen = addrlen;
+}
+
+void message_header::set_io_vector(io_vector& v) {
+  msg_iov = &v[0];
+  msg_iovlen = v.size();
+}
 
 io_await_read::io_await_read(int fd, char* c, size_t n, u64 offset)
     : fd(fd), c(c), n(n), offset(offset) {}
 
-io_await_recv::io_await_recv(int fd,char* c,size_t n,int flags):fd(fd),c(c),n(n),flags(flags){
+io_await_recv::io_await_recv(int fd, char* c, size_t n, int flags)
+    : fd(fd), c(c), n(n), flags(flags) {}
+io_await_send::io_await_send(int fd, const char* c, size_t n, int flags)
+    : fd(fd), c(c), n(n), flags(flags) {}
+io_await_send_zc::io_await_send_zc(int fd, const char* c, size_t n, int flags)
+    : fd(fd), c(c), n(n), flags(flags) {}
+io_await_recvmsg::io_await_recvmsg(int fd, message_header* msg, int flags)
+    : fd(fd), msg(msg), flags(flags) {}
+io_await_sendmsg::io_await_sendmsg(int fd, message_header* msg, int flags)
+    : fd(fd), msg(msg), flags(flags) {}
 
-}
-io_await_send::io_await_send(int fd,const char* c,size_t n,int flags):fd(fd),c(c),n(n),flags(flags){
-
-}
-io_await_send_zc::io_await_send_zc(int fd,const char* c,size_t n,int flags):fd(fd),c(c),n(n),flags(flags){
-
-}
-void io_await_recv::prepare(io_uring_sqe* sqe){
+void io_await_recv::prepare(io_uring_sqe* sqe) {
   io_uring_prep_recv(sqe, fd, c, n, flags);
 }
-void io_await_send::prepare(io_uring_sqe* sqe){
+void io_await_send::prepare(io_uring_sqe* sqe) {
   io_uring_prep_send(sqe, fd, c, n, flags);
 }
-void io_await_send_zc::prepare(io_uring_sqe* sqe){
-  io_uring_prep_send_zc(sqe, fd, c, n, flags,0);
+void io_await_send_zc::prepare(io_uring_sqe* sqe) {
+  io_uring_prep_send_zc(sqe, fd, c, n, flags, 0);
 }
 void io_await_read::prepare(io_uring_sqe* sqe) {
   io_uring_prep_read(sqe, fd, c, n, offset);
+}
+void io_await_recvmsg::prepare(io_uring_sqe* sqe) {
+  io_uring_prep_recvmsg(sqe, fd, msg, flags);
+}
+void io_await_sendmsg::prepare(io_uring_sqe* sqe) {
+  io_uring_prep_sendmsg(sqe, fd, msg, flags);
 }
 
 io_await_accept::io_await_accept(int fd) : fd(fd) {}
@@ -194,13 +217,13 @@ io_await_read async_read(int fd, char* c, size_t n, u64 offset) {
 io_await_write async_write(int fd, const char* c, size_t n, u64 offset) {
   return io_await_write{fd, c, n, offset};
 }
-io_await_recv async_recv(int fd,char *c,size_t n,int flags){
-  return {fd,c,n,flags};
+io_await_recv async_recv(int fd, char* c, size_t n, int flags) {
+  return {fd, c, n, flags};
 }
-io_await_send async_send(int fd,const char *c,size_t n,int flags){
-  return {fd,c,n,flags};
+io_await_send async_send(int fd, const char* c, size_t n, int flags) {
+  return {fd, c, n, flags};
 }
-io_await_send_zc async_send_zc(int fd,const char *c,size_t n,int flags){
-  return {fd,c,n,flags};
+io_await_send_zc async_send_zc(int fd, const char* c, size_t n, int flags) {
+  return {fd, c, n, flags};
 }
 }  // namespace zio

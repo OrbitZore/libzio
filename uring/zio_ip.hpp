@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cctype>
 #include <cerrno>
 #include <cstdint>
 #include <exception>
@@ -26,37 +27,37 @@ struct ipv6;
 template <class T>
 concept IP_Address = types::Address<T> && (is_same_v<remove_cvref_t<T>, ipv4> ||
                                            is_same_v<remove_cvref_t<T>, ipv6>);
+
 template <IP_Address Address>
 inline optional<Address> from_url(const char* a) {
   addrinfo* ai;
-  int i = 0, port = 0, di = 0;
+  int i = 0, port = 0, di = 0, j = 0, k = 0;
   char domain[128];
-  while (a[i] && a[i] != ':') {
-    i++;
-  }
-  if (a[i]) {
-    if (i >= 4 && a[0] == 'h' && a[1] == 't' && a[2] == 't' && a[3] == 'p')
-      if (a[4] == 's')
+  while (a[i] && a[i++] != ':')
+    ;
+  k = j = i;
+  while (a[j] && a[j++] != ':')
+    ;
+  if (a[i] == '/' && a[i + 1] == '/') {
+    if (a[i + 2] == 'h' && a[i + 3] == 't' && a[i + 4] == 't' &&
+        a[i + 5] == 'p') {
+      if (a[i + 6] == 's')
         port = 443;
       else
         port = 80;
-    i += 3;
-  } else
-    i = 0;
-  if (a[i]) {
-    int j = i;
-    while (a[j] && a[j] != ':' && a[j] != '/') {
-      domain[di++] = a[j];
-      j++;
+      k = j;
     }
-    if (a[j] == ':') {
-      j++;
-      port = 0;
-      while (a[j]&&isdigit(a[j])){
-        port = port * 10 + a[j] - '0';
-        j++;
-      }
-    }
+  }
+  {
+    int ii = port ? i + 2 : 0;
+    while (a[ii] && a[ii] != '/' && a[ii] != ':')
+      domain[di++] = a[ii++];
+  }
+  if (isdigit(a[k])) {
+    port = 0;
+    do {
+      port = port * 10 + a[k] - '0';
+    } while (isdigit(a[++k]));
   }
   domain[di] = '\0';
   addrinfo hint{};
@@ -142,8 +143,8 @@ struct udp {
     return zio::async_connect<T, udp>(forward<T>(addr));
   }
   template <IP_Address T>
-  static connection async_open(T&& addr) {
-    return zio::async_open<T, udp>(forward<T>(addr));
+  static connection open(T&& addr) {
+    return zio::open<T, udp>(forward<T>(addr));
   }
 };
 }  // namespace zio::ip
