@@ -1,3 +1,4 @@
+#include <string_view>
 #include "uringtest.h"
 #include "zio_ip.hpp"
 #include "zio_types.hpp"
@@ -5,8 +6,8 @@ using namespace zio;
 using namespace zio::ip;
 using namespace std;
 string s;
-template<types::Address Address,types::Protocol Protocol>
-awaitable<void> echo_server(connection<Address,Protocol> con) {
+template <types::Address Address, types::Protocol Protocol>
+awaitable<void> echo_server(connection<Address, Protocol> con) {
   // cerr<<"New:"<<con.fd<<endl;
   // co_await con.async_write(s.c_str(), s.size());
   char c[1024];
@@ -23,32 +24,33 @@ awaitable<void> echo_server(connection<Address,Protocol> con) {
   con.close();
 }
 
-template<types::Address Address>
-awaitable<void> server(io_context& ctx,Address &addr) {
+template <types::Address Address>
+awaitable<void> server(io_context& ctx, Address& addr) {
   tcp::acceptor<ipv4> acceptor(addr);
   char c;
-  auto g=async_read(0,&c,1);
+  auto g = async_read(0, &c, 1);
   while (1) {
-    auto ac=acceptor.async_accept();
-    co_await wait_any(ac,g);
+    auto ac = acceptor.async_accept();
+    co_await wait_any(ac, g);
     if (!ac) {
-      auto con=ac.get_return();
-      if (con){
+      auto con = ac.get_return();
+      if (con) {
         ctx.reg(con.async_send("Hello World!", 12));
         ctx.reg(echo_server(con));
       }
-    }else exit(0);
+    } else
+      exit(0);
   }
 }
-int main(int argc,char *argv[]){
-  cerr<<ipv4::from_pret("192.168.0.0/24", 80).to_pret()<<endl;
-  assert(argc>=2);
-  if (auto ip=ipv4::from_url(argv[1])){
+int main(int argc, char* argv[]) {
+  cerr << ipv4::from_pret("192.168.0.0/24", 80).to_pret() << endl;
+  assert(argc >= 2);
+  if (auto ip = ipv4::from_url(argv[1])) {
     io_context ctx;
-    cerr<<ip->to_pret()<<endl;
+    cerr << ip->to_pret() << endl;
     ctx.reg(server(ctx, *ip));
     ctx.run();
-  }else{
-    cerr<<"url prase error!"<<endl;
+  } else {
+    cerr << "url prase error!" << endl;
   }
 }

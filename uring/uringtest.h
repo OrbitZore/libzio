@@ -41,7 +41,7 @@ struct promise;
 struct promise_base;
 struct await {
   io_context* ctx{NULL};
-  vector<promise_base*> wake_queue;
+  promise_base* waiter{NULL};
   bool done{false}, from_ctx{false};
   void set_context(io_context& _ctx);
   void wake_others();
@@ -141,7 +141,7 @@ inline void io_await::await_suspend(coroutine_handle<U> h) {
   auto sqe = ctx->get_sqe();
   prepare(sqe);
   io_uring_sqe_set_data(sqe, this);
-  wake_queue.push_back(&h.promise());
+  waiter = &h.promise();
   h.promise().wait_cnt++;
 }
 
@@ -202,6 +202,7 @@ struct all_await {
   }
   template <class U>
   void await_suspend(coroutine_handle<U> h) {
+    h.promise().wait_cnt = 0;
     std::apply(
         [&](auto&&... args) { ((args ? args.await_suspend(h) : void()), ...); },
         t);
@@ -226,7 +227,7 @@ struct awaitable_base {
   template <class U>
   void await_suspend(coroutine_handle<U> h) const {
     p->ctx->work_queue.push_back(p);
-    p->wake_queue.push_back(&h.promise());
+    p->waiter = &h.promise();
     h.promise().wait_cnt++;
   }
   coroutine_handle<promise<T>> handle() {
@@ -273,7 +274,7 @@ struct timeout_await : public await {
   operator bool() const { return time(NULL) <= t; }
   template <class U>
   void await_suspend(coroutine_handle<U> h) {
-    wake_queue.push_back(&h.promise());
+    waiter = &h.promise();
     h.promise().wait_cnt++;
     ctx->sleep_queue.insert({t, this});
   }

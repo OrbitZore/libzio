@@ -5,18 +5,15 @@
 #include <unistd.h>
 namespace zio {
 void await::wake_others() {
-  for (auto wake_promise : wake_queue)
-    if (--wake_promise->wait_cnt == 0) {
-      ctx->work_queue.push_back(wake_promise);
-    }
-  wake_queue.clear();
+  if (waiter && --waiter->wait_cnt == 0) {
+    ctx->work_queue.push_back(waiter);
+  }
+  waiter = NULL;
 }
 coroutine_handle<promise_base> promise_base::handle() {
   return coroutine_handle<promise_base>::from_promise(*this);
 }
-promise_base::~promise_base(){
-
-}
+promise_base::~promise_base() {}
 void awaitable<void>::get_return() {
   if (!p)
     return;
@@ -55,14 +52,14 @@ void io_context::run() {
     bool is_advanced = false;
     while (work_queue.size()) {
       is_advanced = true;
-      auto p=work_queue.front();
+      auto p = work_queue.front();
       work_queue.pop_front();
       p->handle()();
       p->wake_others();
       if (p->done && p->from_ctx) {
         p->handle().destroy();
 #ifdef DEBUG
-        cerr << "Destory:"<< p << endl;
+        cerr << "Destory:" << p << endl;
 #endif
       } else {
 #ifdef DEBUG
@@ -72,9 +69,11 @@ void io_context::run() {
     }
     uring_submit_cnt += io_uring_submit(&ring);
     io_uring_cqe* cqe;
-    while (!io_uring_peek_cqe(&ring, &cqe)) {
+    __kernel_timespec t{};
+    t.tv_nsec = 1e-2 / 1e-9;
+    while (!io_uring_wait_cqe_timeout(&ring, &cqe, &t)) {
       is_advanced = true;
-      if (io_await* c = (io_await*)io_uring_cqe_get_data(cqe)){
+      if (io_await* c = (io_await*)io_uring_cqe_get_data(cqe)) {
         c->complete(cqe->res);
         c->wake_others();
         c->done = true;
