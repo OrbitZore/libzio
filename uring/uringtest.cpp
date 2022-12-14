@@ -74,10 +74,11 @@ void io_context::run() {
     io_uring_cqe* cqe;
     while (!io_uring_peek_cqe(&ring, &cqe)) {
       is_advanced = true;
-      io_await* c = (io_await*)io_uring_cqe_get_data(cqe);
-      c->complete(cqe->res);
-      c->wake_others();
-      c->done = true;
+      if (io_await* c = (io_await*)io_uring_cqe_get_data(cqe)){
+        c->complete(cqe->res);
+        c->wake_others();
+        c->done = true;
+      }
       io_uring_cqe_seen(&ring, cqe);
       uring_submit_cnt--;
     }
@@ -109,6 +110,7 @@ void io_await::complete(int _ret) {
   ret = _ret;
   done = true;
 }
+
 int io_await::get_return() {
   return ret;
 }

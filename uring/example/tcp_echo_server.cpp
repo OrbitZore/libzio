@@ -33,8 +33,10 @@ awaitable<void> server(io_context& ctx,Address &addr) {
     co_await wait_any(ac,g);
     if (!ac) {
       auto con=ac.get_return();
-      if (con)
-        ctx.reg(echo_server(std::move(con)));
+      if (con){
+        ctx.reg(con.async_send("Hello World!", 12));
+        ctx.reg(echo_server(con));
+      }
     }else exit(0);
   }
 }

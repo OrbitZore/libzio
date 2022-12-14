@@ -84,6 +84,22 @@ struct io_context {
     work_queue.push_back(a.get_promise());
     a.detached();
   }
+  inline io_uring_sqe* get_sqe() {
+    auto sqe = io_uring_get_sqe(&ring);
+    while (!sqe) {
+#ifdef DEBUG
+      cerr << "full" << endl;
+#endif
+      uring_submit_cnt += io_uring_submit(&ring);
+      sqe = io_uring_get_sqe(&ring);
+    }
+    return sqe;
+  }
+  inline void reg(io_await&& ioa) {
+    auto sqe = get_sqe();
+    ioa.prepare(sqe);
+    io_uring_sqe_set_data(sqe, NULL);
+  }
   void run();
 };
 template <class T>
@@ -122,14 +138,7 @@ inline void io_await::await_suspend(coroutine_handle<U> h) {
 #ifdef DEBUG
   cerr << "con" << endl;
 #endif
-  auto sqe = io_uring_get_sqe(&ctx->ring);
-  if (!sqe) {
-#ifdef DEBUG
-    cerr << "full" << endl;
-#endif
-    ctx->uring_submit_cnt += io_uring_submit(&ctx->ring);
-    sqe = io_uring_get_sqe(&ctx->ring);
-  }
+  auto sqe = ctx->get_sqe();
   prepare(sqe);
   io_uring_sqe_set_data(sqe, this);
   wake_queue.push_back(&h.promise());
@@ -431,18 +440,20 @@ struct connection {
       ::close(fd);
   }
 
-  void getopt(int level,int opt,void* optval,socklen_t *optlen) {
-    getsockopt(fd,level,opt,optval,optlen);
+  void getopt(int level, int opt, void* optval, socklen_t* optlen) {
+    getsockopt(fd, level, opt, optval, optlen);
   }
-  void setopt(int level,int opt,const void* optval,socklen_t optlen) {
-    setsockopt(fd,level,opt,optval,optlen);
+  void setopt(int level, int opt, const void* optval, socklen_t optlen) {
+    setsockopt(fd, level, opt, optval, optlen);
   }
 
   io_await_write async_write(const char* c, size_t n) {
     return zio::async_write(fd, c, n);
   }
 
-  io_await_read async_read(char* c, size_t n) { return zio::async_read(fd, c, n); }
+  io_await_read async_read(char* c, size_t n) {
+    return zio::async_read(fd, c, n);
+  }
 
   io_await_recv async_recv(char* c, size_t n, int flags = 0) {
     return zio::async_recv(fd, c, n, flags);
