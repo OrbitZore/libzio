@@ -2,6 +2,7 @@
 #include <memory>
 #include "uringtest.h"
 #include "zio_ip.hpp"
+#include "zio_types.hpp"
 using namespace zio;
 using namespace zio::ip;
 awaitable<int> g1() {
@@ -36,7 +37,8 @@ awaitable<void> f() {
   }
   co_return;
 }
-awaitable<void> echo_server(connection con) {
+template<types::Address Address,types::Protocol Protocol>
+awaitable<void> echo_server(connection<Address,Protocol> con) {
   // const char *c="hello!";
   // co_await con.async_write(c, strlen(c));
   char c[1024];
@@ -63,8 +65,8 @@ awaitable<void> server(io_context& ctx) {
   }
   co_return;
 }
-
-awaitable<void> echo_client(connection con) {
+template<types::Address Address,types::Protocol Protocol>
+awaitable<void> echo_client(connection<Address,Protocol> con) {
   char c[1024];
   while (1) {
     int n1 = co_await con.async_read(c, 1024);
@@ -79,7 +81,8 @@ awaitable<void> echo_client(connection con) {
   con.close();
   co_return;
 }
-awaitable<void> request_uuid_client(connection con) {
+template<types::Address Address,types::Protocol Protocol>
+awaitable<void> request_uuid_client(connection<Address,Protocol> con) {
   {
     static const char* uuid_request =
         "GET /uuid HTTP/1.1\r\n"
@@ -144,7 +147,8 @@ awaitable<void> echo_client_await(io_context& ctx, ipv4 addr) {
     co_await wait_all(tm, con);
   }
 }
-awaitable<void> udp_echo_server(io_context& ctx, connection con) {
+template<types::Address Address,types::Protocol Protocol>
+awaitable<void> udp_echo_server(io_context& ctx, connection<Address,Protocol> con) {
   cerr << "listening" << endl;
   char buffer[8];
   io_vector v;

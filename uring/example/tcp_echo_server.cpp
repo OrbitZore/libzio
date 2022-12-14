@@ -4,7 +4,11 @@
 using namespace zio;
 using namespace zio::ip;
 using namespace std;
-awaitable<void> echo_server(connection con) {
+string s;
+template<types::Address Address,types::Protocol Protocol>
+awaitable<void> echo_server(connection<Address,Protocol> con) {
+  // cerr<<"New:"<<con.fd<<endl;
+  // co_await con.async_write(s.c_str(), s.size());
   char c[1024];
   while (1) {
     int n1 = co_await con.async_read(c, 1024);
@@ -17,7 +21,6 @@ awaitable<void> echo_server(connection con) {
       break;
   }
   con.close();
-  co_return;
 }
 
 template<types::Address Address>
@@ -34,9 +37,9 @@ awaitable<void> server(io_context& ctx,Address &addr) {
         ctx.reg(echo_server(std::move(con)));
     }else exit(0);
   }
-  co_return;
 }
 int main(int argc,char *argv[]){
+  cerr<<ipv4::from_pret("192.168.0.0/24", 80).to_pret()<<endl;
   assert(argc>=2);
   if (auto ip=ipv4::from_url(argv[1])){
     io_context ctx;

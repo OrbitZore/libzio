@@ -128,7 +128,7 @@ struct tcp {
   template <IP_Address T>
   using acceptor = zio::acceptor<T, zio::ip::tcp>;
   template <IP_Address T>
-  static io_await_connect async_connect(T&& addr) {
+  static auto async_connect(T&& addr) {
     return zio::async_connect<T, tcp>(forward<T>(addr));
   }
 };
@@ -139,11 +139,11 @@ struct udp {
   template <IP_Address T>
   using acceptor = zio::acceptor<T, zio::ip::udp>;
   template <IP_Address T>
-  static io_await_connect async_connect(T&& addr) {
+  static auto async_connect(T&& addr) {
     return zio::async_connect<T, udp>(forward<T>(addr));
   }
   template <IP_Address T>
-  static connection open(T&& addr) {
+  static auto open(T&& addr) {
     return zio::open<T, udp>(forward<T>(addr));
   }
 };

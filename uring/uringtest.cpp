@@ -1,6 +1,7 @@
 #include "uringtest.h"
 #include <liburing.h>
 #include <liburing/io_uring.h>
+#include <sys/socket.h>
 #include <unistd.h>
 namespace zio {
 void await::wake_others() {
@@ -118,38 +119,6 @@ void io_await_write::prepare(io_uring_sqe* sqe) {
   io_uring_prep_write(sqe, fd, c, n, offset);
 }
 
-void connection::close() {
-  if (fd >= 0)
-    ::close(fd);
-}
-
-io_await_write connection::async_write(const char* c, size_t n) {
-  return zio::async_write(fd, c, n);
-}
-
-io_await_read connection::async_read(char* c, size_t n) {
-  return zio::async_read(fd, c, n);
-}
-
-io_await_recv connection::async_recv(char* c, size_t n, int flags) {
-  return zio::async_recv(fd, c, n, flags);
-}
-
-io_await_send connection::async_send(const char* c, size_t n, int flags) {
-  return zio::async_send(fd, c, n, flags);
-}
-
-io_await_sendmsg connection::async_sendmsg(message_header* msg, int flags) {
-  return {fd, msg, flags};
-}
-io_await_recvmsg connection::async_recvmsg(message_header* msg, int flags) {
-  return {fd, msg, flags};
-}
-
-io_await_send_zc connection::async_send_zc(const char* c, size_t n, int flags) {
-  return zio::async_send_zc(fd, c, n, flags);
-}
-
 void message_header::set_address(void* addr, int addrlen) {
   msg_name = addr;
   msg_namelen = addrlen;
@@ -191,23 +160,6 @@ void io_await_recvmsg::prepare(io_uring_sqe* sqe) {
 }
 void io_await_sendmsg::prepare(io_uring_sqe* sqe) {
   io_uring_prep_sendmsg(sqe, fd, msg, flags);
-}
-
-io_await_accept::io_await_accept(int fd) : fd(fd) {}
-void io_await_accept::prepare(io_uring_sqe* sqe) {
-  io_uring_prep_accept(sqe, fd, NULL, NULL, 0);
-}
-connection io_await_accept::get_return() {
-  return {ret};
-}
-
-io_await_connect::io_await_connect(int fd, sockaddr* addr, socklen_t len)
-    : fd(fd), addr(addr), len(len) {}
-void io_await_connect::prepare(io_uring_sqe* sqe) {
-  io_uring_prep_connect(sqe, fd, addr, len);
-}
-connection io_await_connect::get_return() {
-  return {fd, ret};
 }
 
 io_await_read async_read(int fd, char* c, size_t n, u64 offset) {

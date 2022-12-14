@@ -345,59 +345,52 @@ struct io_await_send_zc : public io_await {
   io_await_send_zc(int fd, const char* c, size_t n, int flags);
   virtual void prepare(io_uring_sqe* sqe);
 };
+template <types::Address Address, types::Protocol Protocol>
+struct connection;
 
-struct connection {
-  int fd{-1};
-  int status{0};
-  void close();
-  operator bool() { return fd != -1 && status == 0; }
-  io_await_write async_write(const char* c, size_t n);
-  io_await_read async_read(char* c, size_t n);
-  io_await_recv async_recv(char* c, size_t n, int flags = 0);
-  io_await_send async_send(const char* c, size_t n, int flags = 0);
-  io_await_send_zc async_send_zc(const char* c, size_t n, int flags = 0);
-  io_await_sendmsg async_sendmsg(message_header* msg, int flags = 0);
-  io_await_recvmsg async_recvmsg(message_header* msg, int flags = 0);
-};
-
+template <types::Address Address, types::Protocol Protocol>
 struct io_await_accept : public io_await {
   int fd;
-  io_await_accept(int fd);
-  virtual void prepare(io_uring_sqe* sqe);
-  connection get_return();
+  io_await_accept(int fd) : fd(fd) {}
+  void prepare(io_uring_sqe* sqe) {
+    io_uring_prep_accept(sqe, fd, NULL, NULL, 0);
+  }
+  connection<Address, Protocol> get_return() { return {ret}; }
 };
 
-template <types::Address Address, types::Protocol proto>
+template <types::Address Address, types::Protocol Protocol>
 struct acceptor {
   int fd;
   ~acceptor() { close(fd); }
   acceptor(const Address& addr) {
-    fd = socket(Address::AF, proto::SOCK, proto::PROTO);
+    fd = socket(Address::AF, Protocol::SOCK, Protocol::PROTO);
     if (::bind(fd, (const sockaddr*)&addr, addr.length()) < 0)
       throw exception();
     ::listen(fd, 16);
   }
-  io_await_accept async_accept() { return {fd}; }
+  io_await_accept<Address, Protocol> async_accept() { return {fd}; }
 };
 
+template <types::Address Address, types::Protocol Protocol>
 struct io_await_connect : public io_await {
   int fd;
   sockaddr* addr;
   socklen_t len;
-  io_await_connect(int fd, sockaddr* addr, socklen_t len);
-  virtual void prepare(io_uring_sqe* sqe);
-  connection get_return();
+  io_await_connect(int fd, sockaddr* addr, socklen_t len)
+      : fd(fd), addr(addr), len(len) {}
+  void prepare(io_uring_sqe* sqe) { io_uring_prep_connect(sqe, fd, addr, len); }
+  connection<Address, Protocol> get_return() { return {fd, ret}; }
 };
 
-template <types::Address Address, types::Protocol proto>
-io_await_connect async_connect(Address&& addr) {
-  int fd = socket(decay_t<Address>::AF, proto::SOCK, proto::PROTO);
+template <types::Address Address, types::Protocol Protocol>
+io_await_connect<Address, Protocol> async_connect(Address&& addr) {
+  int fd = socket(decay_t<Address>::AF, Protocol::SOCK, Protocol::PROTO);
   return {fd, (sockaddr*)&addr, addr.length()};
 }
 
-template <types::Address Address, types::Protocol proto>
-connection open(Address&& addr) {
-  int fd = socket(decay_t<Address>::AF, proto::SOCK, proto::PROTO);
+template <types::Address Address, types::Protocol Protocol>
+connection<Address, Protocol> open(Address&& addr) {
+  int fd = socket(decay_t<Address>::AF, Protocol::SOCK, Protocol::PROTO);
   int status = ::bind(fd, (const sockaddr*)&addr, addr.length());
   if (status < 0) {
     status = errno;
@@ -427,4 +420,47 @@ io_await_sendmsg async_sendmsg(int fd, message_header* msg, int flags) {
   return {fd, msg, flags};
 }
 io_await_send_zc async_send_zc(int fd, const char* c, size_t n, int flags);
+
+template <types::Address Address, types::Protocol Protocol>
+struct connection {
+  int fd{-1};
+  int status{0};
+  operator bool() { return fd != -1 && status == 0; }
+  void close() {
+    if (fd >= 0)
+      ::close(fd);
+  }
+
+  void getopt(int level,int opt,void* optval,socklen_t *optlen) {
+    getsockopt(fd,level,opt,optval,optlen);
+  }
+  void setopt(int level,int opt,const void* optval,socklen_t optlen) {
+    setsockopt(fd,level,opt,optval,optlen);
+  }
+
+  io_await_write async_write(const char* c, size_t n) {
+    return zio::async_write(fd, c, n);
+  }
+
+  io_await_read async_read(char* c, size_t n) { return zio::async_read(fd, c, n); }
+
+  io_await_recv async_recv(char* c, size_t n, int flags = 0) {
+    return zio::async_recv(fd, c, n, flags);
+  }
+
+  io_await_send async_send(const char* c, size_t n, int flags = 0) {
+    return zio::async_send(fd, c, n, flags);
+  }
+
+  io_await_sendmsg async_sendmsg(message_header* msg, int flags = 0) {
+    return {fd, msg, flags};
+  }
+  io_await_recvmsg async_recvmsg(message_header* msg, int flags = 0) {
+    return {fd, msg, flags};
+  }
+
+  io_await_send_zc async_send_zc(const char* c, size_t n, int flags = 0) {
+    return zio::async_send_zc(fd, c, n, flags);
+  }
+};
 }  // namespace zio
