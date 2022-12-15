@@ -1,25 +1,33 @@
+#include <cerrno>
+#include <cstring>
+#include <memory>
 #include <string_view>
 #include "uringtest.h"
 #include "zio_ip.hpp"
 #include "zio_types.hpp"
 using namespace zio;
 using namespace zio::ip;
+using namespace zio::debug;
 using namespace std;
 string s;
 template <types::Address Address, types::Protocol Protocol>
 awaitable<void> echo_server(connection<Address, Protocol> con) {
   // cerr<<"New:"<<con.fd<<endl;
   // co_await con.async_write(s.c_str(), s.size());
-  char c[1024];
+  auto c=make_unique<array<char,1024>>();
   while (1) {
-    int n1 = co_await con.async_read(c, 1024);
+    int n1 = co_await con.async_recv(c->data(), 1024);
     cerr << "recv:" << n1 << endl;
-    if (n1 <= 0)
+    if (n1 <= 0){
+      perrno(n1);
       break;
-    int n2 = co_await con.async_write(c, n1);
+    }
+    int n2 = co_await con.async_send(c->data(), n1);
     cerr << "send:" << n2 << endl;
-    if (n2 <= 0)
+    if (n2 <= 0){
+      perrno(n1);
       break;
+    }
   }
   con.close();
 }
@@ -43,7 +51,6 @@ awaitable<void> server(io_context& ctx, Address& addr) {
   }
 }
 int main(int argc, char* argv[]) {
-  cerr << ipv4::from_pret("192.168.0.0/24", 80).to_pret() << endl;
   assert(argc >= 2);
   if (auto ip = ipv4::from_url(argv[1])) {
     io_context ctx;

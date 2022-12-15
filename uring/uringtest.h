@@ -13,6 +13,9 @@
 #include "cardinal.hpp"
 #include "liburing.h"
 #include "zio_types.hpp"
+namespace zio::debug {
+void perrno(int errno_);
+}
 namespace zio {
 template <class T>
 struct awaitable;
@@ -123,6 +126,9 @@ struct promise : promise_base {
   awaitable<T> get_return_object() { return {this}; }
   template <class U>
   void return_value(U&& value) {
+  #ifdef DEBUG
+    cerr<<"return"<<value<<endl;
+  #endif
     value_ = ::forward<U>(value);
     done = true;
   }
@@ -131,7 +137,7 @@ struct promise : promise_base {
     value_ = ::forward<U>(value);
     return suspend_always{};
   }
-  T value_;
+  optional<T> value_;
 };
 template <class U>
 inline void io_await::await_suspend(coroutine_handle<U> h) {
@@ -179,10 +185,11 @@ struct any_await {
   }
   template <class U>
   void await_suspend(coroutine_handle<U> h) {
+    h.promise().wait_cnt = 0;
     std::apply(
         [&](auto&&... args) { ((args ? args.await_suspend(h) : void()), ...); },
         t);
-    h.promise().wait_cnt = 1;
+    h.promise().wait_cnt = min(h.promise().wait_cnt,1);
   }
   void get_return() {}
 };
@@ -222,8 +229,14 @@ struct awaitable_base {
       p->ctx = &ctx;
   }
   // true for not done
-  // false for done
-  operator bool() const { return p && !p->done; }
+  // false for done or has value
+  operator bool() const { 
+    if constexpr(!is_same_v<T, void>){
+    return p && !p->done && !p->value_; 
+    }else{
+    return p && !p->done; 
+    }
+  }
   template <class U>
   void await_suspend(coroutine_handle<U> h) const {
     p->ctx->work_queue.push_back(p);
@@ -254,10 +267,11 @@ struct awaitable : public awaitable_base<T> {
   optional<T> get_return() {
     if (!p)
       return {};
-    auto ret = ::move(p->value_);
+    auto ret = std::move(p->value_);
+    p->value_.reset();
     if (p->done) {
       handle().destroy();
-      p = nullptr;
+      p = {};
     }
     return ret;
   }
@@ -282,6 +296,7 @@ struct timeout_await : public await {
 };
 
 struct io_await_read : public io_await {
+  io_await_read();
   int fd;
   char* c;
   size_t n;
@@ -291,6 +306,7 @@ struct io_await_read : public io_await {
 };
 
 struct io_await_write : public io_await {
+  io_await_write();
   int fd;
   const char* c;
   size_t n;
@@ -300,6 +316,7 @@ struct io_await_write : public io_await {
 };
 
 struct io_await_recv : public io_await {
+  io_await_recv();
   int fd;
   char* c;
   size_t n;
@@ -309,6 +326,7 @@ struct io_await_recv : public io_await {
 };
 
 struct io_await_send : public io_await {
+  io_await_send();
   int fd;
   const char* c;
   size_t n;
@@ -332,6 +350,7 @@ struct message_header : public msghdr {
 };
 
 struct io_await_recvmsg : public io_await {
+  io_await_recvmsg();
   int fd;
   message_header* msg;
   int flags;
@@ -340,6 +359,7 @@ struct io_await_recvmsg : public io_await {
 };
 
 struct io_await_sendmsg : public io_await {
+  io_await_sendmsg();
   int fd;
   message_header* msg;
   int flags;
@@ -348,6 +368,7 @@ struct io_await_sendmsg : public io_await {
 };
 
 struct io_await_send_zc : public io_await {
+  io_await_send_zc();
   int fd;
   const char* c;
   size_t n;
@@ -355,11 +376,13 @@ struct io_await_send_zc : public io_await {
   io_await_send_zc(int fd, const char* c, size_t n, int flags);
   virtual void prepare(io_uring_sqe* sqe);
 };
+
 template <types::Address Address, types::Protocol Protocol>
 struct connection;
 
 template <types::Address Address, types::Protocol Protocol>
 struct io_await_accept : public io_await {
+  io_await_accept();
   int fd;
   io_await_accept(int fd) : fd(fd) {}
   void prepare(io_uring_sqe* sqe) {
@@ -386,6 +409,7 @@ struct io_await_connect : public io_await {
   int fd;
   sockaddr* addr;
   socklen_t len;
+  io_await_connect() {}
   io_await_connect(int fd, sockaddr* addr, socklen_t len)
       : fd(fd), addr(addr), len(len) {}
   void prepare(io_uring_sqe* sqe) { io_uring_prep_connect(sqe, fd, addr, len); }
@@ -393,14 +417,15 @@ struct io_await_connect : public io_await {
 };
 
 template <types::Address Address, types::Protocol Protocol>
-io_await_connect<Address, Protocol> async_connect(Address&& addr) {
-  int fd = socket(decay_t<Address>::AF, Protocol::SOCK, Protocol::PROTO);
+io_await_connect<remove_cvref_t<Address>, Protocol> async_connect(
+    Address&& addr) {
+  int fd = socket(remove_cvref_t<Address>::AF, Protocol::SOCK, Protocol::PROTO);
   return {fd, (sockaddr*)&addr, addr.length()};
 }
 
 template <types::Address Address, types::Protocol Protocol>
-connection<Address, Protocol> open(Address&& addr) {
-  int fd = socket(decay_t<Address>::AF, Protocol::SOCK, Protocol::PROTO);
+connection<remove_cvref_t<Address>, Protocol> open(Address&& addr) {
+  int fd = socket(remove_cvref_t<Address>::AF, Protocol::SOCK, Protocol::PROTO);
   int status = ::bind(fd, (const sockaddr*)&addr, addr.length());
   if (status < 0) {
     status = errno;

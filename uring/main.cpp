@@ -190,11 +190,12 @@ int main(int argc, char* argv[]) {
   io_context ctx;
   // const auto ip =ipv4::from_pret("127.0.0.1",1244);
   // const auto ip =*ipv4::from_url("http://httpbin.org");
-  auto ip = *ipv4::from_url("0.0.0.0:21412");
+  // auto ip = *ipv4::from_url("0.0.0.0:21412");
   // cerr<<ip->to_pret()<<endl;
   // ctx.reg(echo_client_await(ctx,ip));
-  ctx.reg(udp_echo_server(ctx, udp::open(ip)));
+  // ctx.reg(udp_echo_server(ctx, udp::open(ip)));
   // ctx.reg(server(ctx));
+  ctx.reg(f());
   ctx.run();
   // struct io_uring_cqe* cqe;
   /* get an sqe and fill in a READV operation */

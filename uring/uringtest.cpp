@@ -3,6 +3,21 @@
 #include <liburing/io_uring.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+namespace zio::debug{
+  void perrno(int errno_){
+    if (errno_<0) errno_=-errno_;
+    if (errno_>0||
+    #ifdef DEBUG
+    errno==0
+    #else
+    0
+    #endif
+    ){
+      cerr << "[Error :" << errno_ << " ]" << strerror(errno_) << endl;
+    }
+  }
+}
 namespace zio {
 void await::wake_others() {
   if (waiter && --waiter->wait_cnt == 0) {
@@ -55,7 +70,8 @@ void io_context::run() {
       auto p = work_queue.front();
       work_queue.pop_front();
       p->handle()();
-      p->wake_others();
+      if (p->done)
+        p->wake_others();
       if (p->done && p->from_ctx) {
         p->handle().destroy();
 #ifdef DEBUG
@@ -70,13 +86,12 @@ void io_context::run() {
     uring_submit_cnt += io_uring_submit(&ring);
     io_uring_cqe* cqe;
     __kernel_timespec t{};
-    t.tv_nsec = 1e-2 / 1e-9;
+    t.tv_nsec = 1e-4 / 1e-9;
     while (!io_uring_wait_cqe_timeout(&ring, &cqe, &t)) {
       is_advanced = true;
       if (io_await* c = (io_await*)io_uring_cqe_get_data(cqe)) {
         c->complete(cqe->res);
         c->wake_others();
-        c->done = true;
       }
       io_uring_cqe_seen(&ring, cqe);
       uring_submit_cnt--;
@@ -129,6 +144,14 @@ void message_header::set_io_vector(io_vector& v) {
   msg_iov = &v[0];
   msg_iovlen = v.size();
 }
+
+io_await_read::io_await_read(){}
+io_await_write::io_await_write(){}
+io_await_recv::io_await_recv(){}
+io_await_send::io_await_send(){}
+io_await_recvmsg::io_await_recvmsg(){}
+io_await_sendmsg::io_await_sendmsg(){}
+io_await_send_zc::io_await_send_zc(){}
 
 io_await_read::io_await_read(int fd, char* c, size_t n, u64 offset)
     : fd(fd), c(c), n(n), offset(offset) {}
