@@ -4,20 +4,21 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-namespace zio::debug{
-  void perrno(int errno_){
-    if (errno_<0) errno_=-errno_;
-    if (errno_>0||
-    #ifdef DEBUG
-    errno==0
-    #else
-    0
-    #endif
-    ){
-      cerr << "[Error :" << errno_ << " ]" << strerror(errno_) << endl;
-    }
+namespace zio::debug {
+void perrno(int errno_) {
+  if (errno_ < 0)
+    errno_ = -errno_;
+  if (errno_ > 0 ||
+#ifdef DEBUG
+      errno == 0
+#else
+      0
+#endif
+  ) {
+    cerr << "[Error :" << errno_ << " ]" << strerror(errno_) << endl;
   }
 }
+}  // namespace zio::debug
 namespace zio {
 void await::wake_others() {
   if (waiter && --waiter->wait_cnt == 0) {
@@ -145,13 +146,13 @@ void message_header::set_io_vector(io_vector& v) {
   msg_iovlen = v.size();
 }
 
-io_await_read::io_await_read(){}
-io_await_write::io_await_write(){}
-io_await_recv::io_await_recv(){}
-io_await_send::io_await_send(){}
-io_await_recvmsg::io_await_recvmsg(){}
-io_await_sendmsg::io_await_sendmsg(){}
-io_await_send_zc::io_await_send_zc(){}
+io_await_read::io_await_read() {}
+io_await_write::io_await_write() {}
+io_await_recv::io_await_recv() {}
+io_await_send::io_await_send() {}
+io_await_recvmsg::io_await_recvmsg() {}
+io_await_sendmsg::io_await_sendmsg() {}
+io_await_send_zc::io_await_send_zc() {}
 
 io_await_read::io_await_read(int fd, char* c, size_t n, u64 offset)
     : fd(fd), c(c), n(n), offset(offset) {}

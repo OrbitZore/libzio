@@ -14,17 +14,17 @@ template <types::Address Address, types::Protocol Protocol>
 awaitable<void> echo_server(connection<Address, Protocol> con) {
   // cerr<<"New:"<<con.fd<<endl;
   // co_await con.async_write(s.c_str(), s.size());
-  auto c=make_unique<array<char,1024>>();
+  auto c = make_unique<array<char, 1024>>();
   while (1) {
     int n1 = co_await con.async_recv(c->data(), 1024);
     cerr << "recv:" << n1 << endl;
-    if (n1 <= 0){
+    if (n1 <= 0) {
       perrno(n1);
       break;
     }
     int n2 = co_await con.async_send(c->data(), n1);
     cerr << "send:" << n2 << endl;
-    if (n2 <= 0){
+    if (n2 <= 0) {
       perrno(n1);
       break;
     }

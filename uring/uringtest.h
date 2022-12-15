@@ -126,9 +126,9 @@ struct promise : promise_base {
   awaitable<T> get_return_object() { return {this}; }
   template <class U>
   void return_value(U&& value) {
-  #ifdef DEBUG
-    cerr<<"return"<<value<<endl;
-  #endif
+#ifdef DEBUG
+    cerr << "return" << value << endl;
+#endif
     value_ = ::forward<U>(value);
     done = true;
   }
@@ -189,7 +189,7 @@ struct any_await {
     std::apply(
         [&](auto&&... args) { ((args ? args.await_suspend(h) : void()), ...); },
         t);
-    h.promise().wait_cnt = min(h.promise().wait_cnt,1);
+    h.promise().wait_cnt = min(h.promise().wait_cnt, 1);
   }
   void get_return() {}
 };
@@ -230,11 +230,11 @@ struct awaitable_base {
   }
   // true for not done
   // false for done or has value
-  operator bool() const { 
-    if constexpr(!is_same_v<T, void>){
-    return p && !p->done && !p->value_; 
-    }else{
-    return p && !p->done; 
+  operator bool() const {
+    if constexpr (!is_same_v<T, void>) {
+      return p && !p->done && !p->value_;
+    } else {
+      return p && !p->done;
     }
   }
   template <class U>
