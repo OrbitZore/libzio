@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"C_Cpp.intelliSenseEngineFallback": "enabled",
+		"C_Cpp.default.intelliSenseMode": "",
+		"C_Cpp.intelliSenseEngine": "disabled",
+		"files.associations": {
+			"codecvt": "cpp"
+		},
+		"C_Cpp.inlayHints.autoDeclarationTypes.enabled": false
+	}
+}

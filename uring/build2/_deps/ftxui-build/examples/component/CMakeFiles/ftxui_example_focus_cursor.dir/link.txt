@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/ftxui_example_focus_cursor.dir/focus_cursor.cpp.o -o ftxui_example_focus_cursor  ../../libftxui-component.a ../../libftxui-dom.a ../../libftxui-screen.a 
