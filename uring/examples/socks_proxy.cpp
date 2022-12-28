@@ -223,19 +223,6 @@ awaitable<void> send(int fd, unique_ptr<array<char, 1024>> ap, int n) {
   co_return;
 }
 
-// awaitable<void> proxy1(int fd1,int fd2){
-//   cerr<<fd1<<"->"<<fd2<<endl;
-// 	unique_ptr<array<char,1024>> buffer1=make_unique<array<char,1024>>();
-//   while (1){
-//     auto n = co_await async_read(fd1,buffer1->data(), 1024);
-//   cerr<<fd1<<"->"<<fd2<<":"<<n<<endl;
-//     if (n<=0) co_return;
-//     cerr<<string_view(buffer1->begin(),buffer1->begin()+n)<<endl;
-//     co_await async_write(fd2,buffer1->data(), n);
-//   }
-//   co_return;
-// }
-
 template <types::Address Address1,
           types::Protocol Protocol1,
           types::Address Address2,
@@ -343,22 +330,6 @@ awaitable<void> server(ip::ipv4 ip) {
   }
 }
 
-// awaitable<void> server2() {
-//   auto acceptor =
-//       ip::tcp::acceptor<ip::ipv4>(*ip::ipv4::from_url("127.0.0.1:1024"));
-//   auto baiduip = *ip::ipv4::from_url("http://www.baidu.com");
-//   cerr << baiduip.to_pret() << endl;
-//   while (true) {
-//     auto x = co_await acceptor.async_accept();
-//     if (x) {
-//       if (auto y = co_await async_connect<ip::ipv4, ip::tcp>(baiduip))
-//         ctx.reg(proxy(std::move(x), std::move(y)));
-//       else
-//         cerr << "connect fail!" << endl;
-//     }
-//   }
-// }
-
 int main(int argc, char* argv[]) {
   if (argc != 3) {
     cerr << "Usage: simple socks proxy server\n";
@@ -367,7 +338,6 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   signal(SIGPIPE, SIG_IGN);
-  // ctx.reg(server2());
   ctx.reg(server(ip::ipv4::from_pret(argv[1], *tools::to_int(argv[2]))));
   ctx.run();
 }

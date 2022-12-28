@@ -34,6 +34,7 @@ add_library(zio
   include/zio_http.hpp
   include/zio_ip.hpp
   include/zio_types.hpp
+  include/cardinal.hpp
   src/uringtest.cpp
 )
 # add_definitions(-DDEBUG=1)
@@ -42,7 +43,7 @@ add_library(zio
 
 set_target_properties(zio PROPERTIES CXX_STANDARD 20)
 
-target_include_directories(zio PUBLIC include/ /home/z3475/ACM/ATL/base/include)
+target_include_directories(zio PUBLIC include/)
 
 target_link_libraries(zio PUBLIC uring)
 

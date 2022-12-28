@@ -1,7 +1,7 @@
 [
 {
   "directory": "/home/z3475/ACM/zio/uring/build",
-  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -I/home/z3475/ACM/ATL/base/include -g -std=gnu++20 -o CMakeFiles/zio.dir/src/uringtest.cpp.o -c /home/z3475/ACM/zio/uring/src/uringtest.cpp",
+  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -g -std=gnu++20 -o CMakeFiles/zio.dir/src/uringtest.cpp.o -c /home/z3475/ACM/zio/uring/src/uringtest.cpp",
   "file": "/home/z3475/ACM/zio/uring/src/uringtest.cpp"
 },
 {
@@ -686,32 +686,32 @@
 },
 {
   "directory": "/home/z3475/ACM/zio/uring/build",
-  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -I/home/z3475/ACM/ATL/base/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_tcp_chatroom.dir/tcp_chatroom.cpp.o -c /home/z3475/ACM/zio/uring/examples/tcp_chatroom.cpp",
+  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_tcp_chatroom.dir/tcp_chatroom.cpp.o -c /home/z3475/ACM/zio/uring/examples/tcp_chatroom.cpp",
   "file": "/home/z3475/ACM/zio/uring/examples/tcp_chatroom.cpp"
 },
 {
   "directory": "/home/z3475/ACM/zio/uring/build",
-  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -I/home/z3475/ACM/ATL/base/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_tcp_connect_server.dir/tcp_connect_server.cpp.o -c /home/z3475/ACM/zio/uring/examples/tcp_connect_server.cpp",
+  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_tcp_connect_server.dir/tcp_connect_server.cpp.o -c /home/z3475/ACM/zio/uring/examples/tcp_connect_server.cpp",
   "file": "/home/z3475/ACM/zio/uring/examples/tcp_connect_server.cpp"
 },
 {
   "directory": "/home/z3475/ACM/zio/uring/build",
-  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -I/home/z3475/ACM/ATL/base/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_tcp_echo_server.dir/tcp_echo_server.cpp.o -c /home/z3475/ACM/zio/uring/examples/tcp_echo_server.cpp",
+  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_tcp_echo_server.dir/tcp_echo_server.cpp.o -c /home/z3475/ACM/zio/uring/examples/tcp_echo_server.cpp",
   "file": "/home/z3475/ACM/zio/uring/examples/tcp_echo_server.cpp"
 },
 {
   "directory": "/home/z3475/ACM/zio/uring/build",
-  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -I/home/z3475/ACM/ATL/base/include -isystem /home/z3475/ACM/zio/uring/build/_deps/ftxui-src/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_input.dir/input.cpp.o -c /home/z3475/ACM/zio/uring/examples/input.cpp",
+  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -isystem /home/z3475/ACM/zio/uring/build/_deps/ftxui-src/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_input.dir/input.cpp.o -c /home/z3475/ACM/zio/uring/examples/input.cpp",
   "file": "/home/z3475/ACM/zio/uring/examples/input.cpp"
 },
 {
   "directory": "/home/z3475/ACM/zio/uring/build",
-  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -I/home/z3475/ACM/ATL/base/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_http_server.dir/http_server.cpp.o -c /home/z3475/ACM/zio/uring/examples/http_server.cpp",
+  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_http_server.dir/http_server.cpp.o -c /home/z3475/ACM/zio/uring/examples/http_server.cpp",
   "file": "/home/z3475/ACM/zio/uring/examples/http_server.cpp"
 },
 {
   "directory": "/home/z3475/ACM/zio/uring/build",
-  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -I/home/z3475/ACM/ATL/base/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_socks_proxy.dir/socks_proxy.cpp.o -c /home/z3475/ACM/zio/uring/examples/socks_proxy.cpp",
+  "command": "/usr/bin/g++ -I/home/z3475/ACM/zio/uring/include -g -std=gnu++20 -o examples/CMakeFiles/zio_example_socks_proxy.dir/socks_proxy.cpp.o -c /home/z3475/ACM/zio/uring/examples/socks_proxy.cpp",
   "file": "/home/z3475/ACM/zio/uring/examples/socks_proxy.cpp"
 }
 ]

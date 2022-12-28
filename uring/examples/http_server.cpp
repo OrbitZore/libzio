@@ -89,6 +89,7 @@ awaitable<void> write_file(connection<ip::ipv4, ip::tcp>& con,
       c += n;
     }
   }
+  close(fd);
 }
 awaitable<void> http_server(connection<ip::ipv4, ip::tcp> con,
                             filesystem::path path) {
