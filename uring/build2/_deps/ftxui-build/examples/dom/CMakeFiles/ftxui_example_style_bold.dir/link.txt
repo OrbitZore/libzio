@@ -1,1 +1,0 @@
-/usr/bin/c++ -g CMakeFiles/ftxui_example_style_bold.dir/style_bold.cpp.o -o ftxui_example_style_bold  ../../libftxui-dom.a ../../libftxui-screen.a 

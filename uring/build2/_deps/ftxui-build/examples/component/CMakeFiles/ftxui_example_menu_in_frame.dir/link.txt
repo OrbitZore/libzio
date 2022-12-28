@@ -1,1 +1,0 @@
-/usr/bin/c++ -g CMakeFiles/ftxui_example_menu_in_frame.dir/menu_in_frame.cpp.o -o ftxui_example_menu_in_frame  ../../libftxui-component.a ../../libftxui-dom.a ../../libftxui-screen.a 

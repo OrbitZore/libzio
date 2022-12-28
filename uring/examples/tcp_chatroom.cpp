@@ -44,6 +44,14 @@ shared_ptr<string> merge_message(shared_ptr<string> name,
 string merge_message(const string& name, const string& message) {
   return get_date() + name + message;
 }
+
+awaitable<void> send(int fd, string line) {
+  co_await async_write(fd, line.data(), line.size());
+}
+awaitable<void> send(int fd, shared_ptr<string> line) {
+  co_await async_write(fd, line->data(), line->size());
+}
+
 struct session {
   shared_ptr<string> name;
   connection<ipv4, tcp> con;
@@ -106,37 +114,33 @@ struct session {
       }
       auto message = get_date() + *system_name + "changed name to " +
                      name->substr(0, name->size() - 3) + "\n";
-      co_await send(std::move(message));
+      co_await send(con.fd, std::move(message));
     } else if (message->starts_with("/online")) {
       vector<shared_ptr<string>> names;
       for (auto i : sessions)
         names.emplace_back(i->name);
       co_await send(
+          con.fd,
           merge_message(system_name, make_shared<string>("Online User:\n")));
       for (auto name : names) {
-        co_await send(merge_message(
-            system_name,
-            make_shared<string>(name->substr(0, name->size() - 3) + "\n")));
+        co_await send(
+            con.fd,
+            merge_message(
+                system_name,
+                make_shared<string>(name->substr(0, name->size() - 3) + "\n")));
       }
     } else if (message->starts_with("/exit")) {
-      co_await send(merge_message(*system_name, "Have a good day!\n"));
+      co_await send(con.fd, merge_message(*system_name, "Have a good day!\n"));
       co_return true;
     } else
       broadcast(name, message);
     co_return false;
   }
-  awaitable<void> send(string line) {
-    co_await con.async_send(line.data(), line.size());
-  }
-  awaitable<void> send(shared_ptr<string> line) {
-    co_await con.async_send(line->data(), line->size());
-  }
 };
-
 void broadcast(shared_ptr<string> name, shared_ptr<string> message) {
   auto line = merge_message(name, message);
   for (auto session : sessions)
-    ctx.reg(session->send(line));
+    ctx.reg(send(session->con.fd, line));
 }
 
 awaitable<void> server(ipv4 addr) {

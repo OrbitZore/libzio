@@ -1,1 +1,0 @@
-/usr/bin/c++ -g CMakeFiles/ftxui_example_slider_direction.dir/slider_direction.cpp.o -o ftxui_example_slider_direction  ../../libftxui-component.a ../../libftxui-dom.a ../../libftxui-screen.a 

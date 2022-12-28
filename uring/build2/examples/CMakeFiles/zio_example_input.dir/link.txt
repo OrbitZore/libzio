@@ -1,1 +1,0 @@
-/usr/bin/c++ -g -fsanitize=address CMakeFiles/zio_example_input.dir/input.cpp.o -o zio_example_input  ../libzio.a ../_deps/ftxui-build/libftxui-screen.a ../_deps/ftxui-build/libftxui-dom.a ../_deps/ftxui-build/libftxui-component.a -luring ../_deps/ftxui-build/libftxui-dom.a ../_deps/ftxui-build/libftxui-screen.a 

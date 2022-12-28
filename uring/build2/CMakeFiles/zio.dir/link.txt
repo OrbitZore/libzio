@@ -1,2 +1,0 @@
-/usr/bin/ar qc libzio.a CMakeFiles/zio.dir/src/uringtest.cpp.o
-/usr/bin/ranlib libzio.a

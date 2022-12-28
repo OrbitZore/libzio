@@ -1,1 +1,0 @@
-/usr/bin/c++ -g CMakeFiles/ftxui_example_tab_horizontal.dir/tab_horizontal.cpp.o -o ftxui_example_tab_horizontal  ../../libftxui-component.a ../../libftxui-dom.a ../../libftxui-screen.a 

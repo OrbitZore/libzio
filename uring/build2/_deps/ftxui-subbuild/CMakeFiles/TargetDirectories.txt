@@ -1,3 +1,0 @@
-/home/z3475/ACM/zio/uring/build2/_deps/ftxui-subbuild/CMakeFiles/ftxui-populate.dir
-/home/z3475/ACM/zio/uring/build2/_deps/ftxui-subbuild/CMakeFiles/edit_cache.dir
-/home/z3475/ACM/zio/uring/build2/_deps/ftxui-subbuild/CMakeFiles/rebuild_cache.dir

@@ -1,1 +1,0 @@
-/usr/bin/c++ -g CMakeFiles/ftxui_example_border.dir/border.cpp.o -o ftxui_example_border  ../../libftxui-dom.a ../../libftxui-screen.a 

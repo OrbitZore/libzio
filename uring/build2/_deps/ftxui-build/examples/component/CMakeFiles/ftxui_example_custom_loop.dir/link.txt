@@ -1,1 +1,0 @@
-/usr/bin/c++ -g CMakeFiles/ftxui_example_custom_loop.dir/custom_loop.cpp.o -o ftxui_example_custom_loop  ../../libftxui-component.a ../../libftxui-dom.a ../../libftxui-screen.a 
