@@ -78,10 +78,10 @@ awaitable<void> write_file(connection<ip::ipv4, ip::tcp>& con,
     co_return;
   array<char, 16 * 1024> data;  // buffer size 16k
   while ((filesize -= available) &&
-         (available = co_await async_read(fd, &data[0], 16 * 1024))) {
+         (available = co_await async_read(fd, &data[0], 16 * 1024, -1))) {
     int c = 0;
     while (c < available) {
-      int n = co_await con.async_write(&data[c], available-c);
+      int n = co_await con.async_write(&data[c], available - c);
       if (n < 0) {
         cerr << format("Errorno [ {} ]: {}\n", n, strerror(-n));
         co_return;
